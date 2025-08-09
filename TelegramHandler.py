@@ -9,9 +9,6 @@ logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s - %(
 # --- Configure Bot
 bot = telebot.TeleBot('')
 
-# --- Configure Selenium
-options = Options()
-
 # --- Configure Database
 db = sqlite3.connect('ebayTracker.db', check_same_thread=False)
 cur = db.cursor()
