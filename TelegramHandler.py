@@ -1,17 +1,6 @@
-import logging, threading, telebot, requests, time, sqlite3, re, pandas as pd, numpy as np
-from time import sleep
-from datetime import datetime as dt
+import logging, telebot, sqlite3
 from ebayScraper import Scraper
-
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(asctime)s - %(message)s", datefmt="%H:%M:%S")
-
-
-# --- Configure Bot
-bot = telebot.TeleBot('')
-
-# --- Configure Database
-db = sqlite3.connect('ebayTracker.db', check_same_thread=False)
-cur = db.cursor()
 
 
 
@@ -26,6 +15,8 @@ def toSend_formatter(toSend):
     for i in "\_*[],()~>#+-_=|!.'":
         toSend = toSend.replace(i, f"\\{i}")  # --- Message must be formatted with backslashes for these characters
     return toSend
+
+
 
 
 
@@ -66,7 +57,7 @@ def TelegramHandler():
                 return
             else:
                 bot.reply_to(message, "Verifying Item ...")
-                numResults = Scraper(response[0]).item_Scraper(glance=False, dbIngest=False).numResults  # Use Scraper to get itemResults
+                numResults = Scraper(response[0], message.chat.id).item_Scraper(glance=False, dbIngest=False).numResults  # Use Scraper to get itemResults
                 if numResults == 0:
                     bot.reply_to(message, f"🤔 Oh No! {response[0]} had no results, maybe try a different wording?")
                     bot.register_next_step_handler(message, track_handler)
@@ -99,7 +90,7 @@ def TelegramHandler():
                 return
             else:
                 bot.reply_to(message, "Verifying Item ...")
-                scraper = Scraper(response[0])
+                scraper = Scraper(response[0], message.chat.id)
                 scraper.item_Scraper(glance=True, dbIngest=False)
                 if scraper.numResults == 0:
                     bot.reply_to(message, f"🤔 Oh No! {response[0]} had no results, maybe try a different wording?")
@@ -108,6 +99,7 @@ def TelegramHandler():
                 else:
                     df = scraper.df  # -- Filter by < Target > 1/2& Target, and <600 Minutes if Auction
                     candidates = df[((df.Price < int(response[1])) & (df.Price >= int(response[1])*0.5)) & ((df.Type == 'Auction') & (df.Minutes < 600) | (df.Type != 'Auction'))].sort_values('Type', ascending=False)[:3]
+                    scraper = None  # Wipe so instance doesn't linger
                     if len(candidates) > 0:
                         for i, row in candidates.iterrows():
                             toSend = 'Buy Now Item found for [£{}]({})'.format(row.Price, row.shortLink) if row.Type != 'Auction' else 'Auction Item found with {} minutes left is currently [£{}]({})'.format(int(row.Minutes), row.Price, row.shortLink)
@@ -172,5 +164,21 @@ def TelegramHandler():
     commands = {'/start': start, '/glance': glance, '/track': track, '/manage': manage}
     bot.polling(none_stop=True)  # Waits Non-Stop for Messages
 
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
-  TelegramHandler()
+    # --- Configure Bot
+    bot = telebot.TeleBot('')
+
+    # --- Configure Database
+    db = sqlite3.connect('', check_same_thread=False)
+    cur = db.cursor()
+
+    TelegramHandler()
